@@ -49,7 +49,7 @@ Resulting APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
 ### GitHub Actions
 
-The workflow at [`.github/workflows/android-ci.yml`](.github/workflows/android-ci.yml):
+The workflow at [`.github/workflows/android.yml`](.github/workflows/android.yml):
 
 - Runs on pushes and pull requests to `main`.
 - Builds the `assembleDebug` APK.
