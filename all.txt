@@ -1,0 +1,596 @@
+Understood—you want me to actually populate the `ogamalx/Imageviewer` repo itself (like we did with the device tree repos), not just hand you files to copy.
+
+I don’t currently have permission to write directly to your repo or open a PR automatically, but I can still “finish it” in a repo-ready way:
+
+1. Provide **all the files** as proper file blocks.
+2. You can then:
+   - Use GitHub’s **"Add file" → "Create new file"** and paste contents, or  
+   - Clone locally and paste the files into place, then push.
+
+Below is a complete, consistent project layout that should build on GitHub Actions and produce your `.apk` artifact.
+
+---
+
+### 1. Root Gradle + settings
+
+````kotlin name=settings.gradle.kts
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "ImgArchiveViewer"
+include(":app")
+
+plugins {
+    id("com.android.application") version "8.4.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+}
+````
+
+```kotlin name=build.gradle.kts
+// Root Gradle build file for ImgArchiveViewer.
+// All configuration is in settings.gradle.kts and app/build.gradle.kts.
+```
+
+---
+
+### 2. App module
+
+```kotlin name=app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.ogamalx.imgviewer"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.ogamalx.imgviewer"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            isDebuggable = true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        viewBinding = true
+    }
+}
+
+dependencies {
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.activity:activity-ktx:1.9.2")
+    implementation("androidx.documentfile:documentfile:1.0.1")
+}
+```
+
+```proguard name=app/proguard-rules.pro
+# No custom rules
+```
+
+---
+
+### 3. AndroidManifest
+
+```xml name=app/src/main/AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.ogamalx.imgviewer">
+
+    <application
+        android:label="IMG Archive Viewer"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ImgArchiveViewer">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+
+            <!-- Launcher -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Open .img from file managers -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.img" />
+            </intent-filter>
+
+        </activity>
+    </application>
+</manifest>
+```
+
+---
+
+### 4. Layout & theme & icon
+
+```xml name=app/src/main/res/layout/activity_main.xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <Button
+        android:id="@+id/btnOpen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open .img" />
+
+    <TextView
+        android:id="@+id/txtInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No file"
+        android:paddingTop="12dp" />
+
+    <Button
+        android:id="@+id/btnConvert"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Convert Sparse → RAW"
+        android:visibility="gone"
+        android:paddingTop="12dp" />
+</LinearLayout>
+```
+
+```xml name=app/src/main/res/values/themes.xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.ImgArchiveViewer" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- You can customize colors here if you want -->
+    </style>
+</resources>
+```
+
+```xml name=app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/black" />
+    <foreground android:drawable="@android:color/white" />
+</adaptive-icon>
+```
+
+If you don’t already have them, add simple color resources so Material3 is happy:
+
+```xml name=app/src/main/res/values/colors.xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+</resources>
+```
+
+---
+
+### 5. MainActivity + sparse parser
+
+```kotlin name=app/src/main/java/com/ogamalx/imgviewer/MainActivity.kt
+package com.ogamalx.imgviewer
+
+import android.net.Uri
+import android.os.Bundle
+import android.widget.Button
+import android.widget.TextView
+import android.content.Intent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.documentfile.provider.DocumentFile
+import java.io.InputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var txtInfo: TextView
+    private lateinit var btnConvert: Button
+
+    private var currentUri: Uri? = null
+    private var sparseInfo: SparseImageInfo? = null
+    private var pendingSparseUri: Uri? = null
+
+    private val openFile = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            currentUri = uri
+            analyze(uri)
+        }
+    }
+
+    private val createRawDoc = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { outUri ->
+        val srcUri = pendingSparseUri ?: return@CreateDocument
+        if (outUri != null) {
+            convertSparseToRawInternal(srcUri, outUri)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        val btnOpen = findViewById<Button>(R.id.btnOpen)
+        txtInfo = findViewById(R.id.txtInfo)
+        btnConvert = findViewById(R.id.btnConvert)
+
+        btnOpen.setOnClickListener {
+            openFile.launch(arrayOf("*/*"))
+        }
+
+        btnConvert.setOnClickListener {
+            val uri = currentUri ?: return@setOnClickListener
+            pendingSparseUri = uri
+
+            val df = DocumentFile.fromSingleUri(this, uri)
+            val name = (df?.name ?: "image") + ".raw.img"
+            createRawDoc.launch(name)
+        }
+
+        // Handle VIEW intents from file managers
+        if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
+            currentUri = intent.data
+            analyze(intent.data!!)
+        }
+    }
+
+    private fun analyze(uri: Uri) {
+        val df = DocumentFile.fromSingleUri(this, uri)
+        val name = df?.name ?: "unknown.img"
+        val size = df?.length() ?: -1
+
+        val header = readFirstBytes(uri, 28)
+        if (header != null && SparseImageParser.isSparse(header)) {
+            val info = SparseImageParser.parseHeader(header)
+            sparseInfo = info
+            val rawSize = info.blockSize.toLong() * info.totalBlocks.toLong()
+            txtInfo.text = buildString {
+                appendLine("File: $name")
+                appendLine("Size: $size bytes")
+                appendLine("Type: ANDROID SPARSE IMAGE")
+                appendLine("Block size: ${info.blockSize}")
+                appendLine("Total blocks: ${info.totalBlocks}")
+                appendLine("Total chunks: ${info.totalChunks}")
+                appendLine("Raw image size: $rawSize bytes")
+            }
+            btnConvert.visibility = Button.VISIBLE
+        } else {
+            txtInfo.text = buildString {
+                appendLine("File: $name")
+                appendLine("Size: $size bytes")
+                appendLine("Type: RAW IMAGE (not sparse or unknown)")
+            }
+            btnConvert.visibility = Button.GONE
+        }
+    }
+
+    private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
+        txtInfo.text = "Writing RAW…"
+
+        try {
+            contentResolver.openInputStream(src)?.use { input ->
+                contentResolver.openOutputStream(outUri)?.use { output ->
+                    SparseImageParser.convertToRaw(input, output) { written ->
+                        runOnUiThread {
+                            txtInfo.text = "Writing RAW… $written bytes"
+                        }
+                    }
+                }
+            }
+            runOnUiThread {
+                txtInfo.text = "Saved RAW image."
+            }
+        } catch (e: Exception) {
+            runOnUiThread {
+                txtInfo.text = "Error: ${e.message}"
+            }
+        }
+    }
+
+    private fun readFirstBytes(uri: Uri, n: Int): ByteArray? {
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                val buf = ByteArray(n)
+                val read = input.read(buf)
+                if (read >= n) buf else null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+data class SparseImageInfo(
+    val magic: Int,
+    val major: Short,
+    val minor: Short,
+    val fileHeaderSize: Short,
+    val chunkHeaderSize: Short,
+    val blockSize: Int,
+    val totalBlocks: Int,
+    val totalChunks: Int,
+    val imageChecksum: Int
+)
+
+object SparseImageParser {
+    private const val SPARSE_MAGIC = 0xED26FF3A.toInt()
+
+    fun isSparse(first28: ByteArray): Boolean {
+        val bb = ByteBuffer.wrap(first28).order(ByteOrder.LITTLE_ENDIAN)
+        val magic = bb.int
+        return magic == SPARSE_MAGIC
+    }
+
+    fun parseHeader(first28: ByteArray): SparseImageInfo {
+        val bb = ByteBuffer.wrap(first28).order(ByteOrder.LITTLE_ENDIAN)
+        val magic = bb.int
+        val major = bb.short
+        val minor = bb.short
+        val fileHeaderSize = bb.short
+        val chunkHeaderSize = bb.short
+        val blockSize = bb.int
+        val totalBlocks = bb.int
+        val totalChunks = bb.int
+        val imageChecksum = bb.int
+        return SparseImageInfo(
+            magic,
+            major,
+            minor,
+            fileHeaderSize,
+            chunkHeaderSize,
+            blockSize,
+            totalBlocks,
+            totalChunks,
+            imageChecksum
+        )
+    }
+
+    // Streaming sparse → raw converter.
+    fun convertToRaw(input: InputStream, output: java.io.OutputStream, progress: (Long) -> Unit = {}) {
+        val header = ByteArray(28)
+        if (input.read(header) != 28 || !isSparse(header)) {
+            // Not sparse: just copy as-is
+            val buf = ByteArray(1 shl 20)
+            var total = 0L
+            while (true) {
+                val r = input.read(buf)
+                if (r <= 0) break
+                output.write(buf, 0, r)
+                total += r
+                progress(total)
+            }
+            return
+        }
+
+        val info = parseHeader(header)
+        if (info.fileHeaderSize > 28) {
+            input.skip((info.fileHeaderSize - 28).toLong())
+        }
+
+        val CHUNK_TYPE_RAW = 0xCAC1
+        val CHUNK_TYPE_FILL = 0xCAC2
+        val CHUNK_TYPE_DONT_CARE = 0xCAC3
+        val CHUNK_TYPE_CRC32 = 0xCAC4
+
+        val blockSize = info.blockSize
+        val zeroBlock = ByteArray(blockSize)
+        val hdr = ByteArray(info.chunkHeaderSize.toInt())
+        val buf = ByteArray(1 shl 20)
+
+        var written: Long = 0
+
+        for (i in 0 until info.totalChunks) {
+            if (input.read(hdr, 0, info.chunkHeaderSize.toInt()) != info.chunkHeaderSize.toInt()) break
+            val bb = ByteBuffer.wrap(hdr).order(ByteOrder.LITTLE_ENDIAN)
+            val chunkType = bb.short.toInt() and 0xFFFF
+            bb.short // reserved
+            val chunkBlocks = bb.int
+            val chunkBytes = bb.int
+
+            when (chunkType) {
+                CHUNK_TYPE_RAW -> {
+                    var remain = chunkBytes - info.chunkHeaderSize
+                    val toWrite = chunkBlocks * blockSize
+                    var copied = 0
+
+                    while (remain > 0) {
+                        val r = input.read(buf, 0, minOf(remain, buf.size))
+                        if (r <= 0) break
+                        output.write(buf, 0, r)
+                        remain -= r
+                        copied += r
+                        written += r
+                        progress(written)
+                    }
+
+                    val pad = toWrite - copied
+                    if (pad > 0) {
+                        output.write(ByteArray(pad))
+                        written += pad
+                        progress(written)
+                    }
+                }
+
+                CHUNK_TYPE_FILL -> {
+                    val fillBytes = ByteArray(4)
+                    input.read(fillBytes)
+                    val fillVal = ByteBuffer.wrap(fillBytes).order(ByteOrder.LITTLE_ENDIAN).int
+
+                    val block = ByteArray(blockSize)
+                    val fillBlock = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(fillVal).array()
+                    var idx = 0
+                    while (idx < block.size) {
+                        val len = minOf(4, block.size - idx)
+                        System.arraycopy(fillBlock, 0, block, idx, len)
+                        idx += len
+                    }
+
+                    val totalBytes = chunkBlocks * blockSize
+                    var left = totalBytes
+                    while (left > 0) {
+                        val w = minOf(left, block.size)
+                        output.write(block, 0, w)
+                        left -= w
+                        written += w.toLong()
+                        progress(written)
+                    }
+                }
+
+                CHUNK_TYPE_DONT_CARE -> {
+                    val totalBytes = chunkBlocks * blockSize
+                    var left = totalBytes
+                    while (left > 0) {
+                        val w = minOf(left, zeroBlock.size)
+                        output.write(zeroBlock, 0, w)
+                        left -= w
+                        written += w.toLong()
+                        progress(written)
+                    }
+                }
+
+                CHUNK_TYPE_CRC32 -> {
+                    val toSkip = chunkBytes - info.chunkHeaderSize
+                    if (toSkip > 0) {
+                        input.skip(toSkip.toLong())
+                    }
+                }
+
+                else -> {
+                    val toSkip = chunkBytes - info.chunkHeaderSize
+                    if (toSkip > 0) {
+                        input.skip(toSkip.toLong())
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+---
+
+### 6. GitHub Actions workflow
+
+```yaml name=.github/workflows/android-ci.yml
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 35
+          build-tools: "35.0.0"
+
+      - name: Install Gradle
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gradle
+
+      - name: Generate Gradle wrapper
+        run: gradle wrapper --gradle-version 8.7
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+```
+
+---
+
+### What you do now (minimal)
+
+In your `Imageviewer` repo:
+
+- Add these files in the paths shown (via GitHub web or locally).
+- If local:
+
+```bash
+git add .
+git commit -m "ImgArchiveViewer: sparse .img viewer and CI"
+git push
+```
+
+Then:
+
+1. Go to [Actions](https://github.com/ogamalx/Imageviewer/actions).
+2. Enable workflows if prompted.
+3. Run **Android CI**.
+4. Download `app-debug-apk` artifact → that’s your .img archive viewer.
+
+If you want, next step I can add a `README.md` and/or simplify CI (cache Gradle, remove system gradle install, etc.).
