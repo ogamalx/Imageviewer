@@ -2,6 +2,12 @@
 
 Small Android app to inspect and convert Android sparse `.img` files.
 
+## Compatibility
+
+- **Minimum Android Version:** Android 8.0 (API 26)
+- **Target Android Version:** Android 15 (API 35)
+- **Tested on:** Android 15, Samsung Galaxy A26 5G (SM-A26)
+
 ## Features
 
 - Open `.img` files from a file picker or via "Open with" in file managers.
