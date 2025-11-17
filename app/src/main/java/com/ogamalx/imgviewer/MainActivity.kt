@@ -1,16 +1,20 @@
 package com.ogamalx.imgviewer
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
-import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
+import androidx.lifecycle.lifecycleScope
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,7 +43,24 @@ class MainActivity : AppCompatActivity() {
     ) { outUri ->
         val srcUri = pendingSparseUri ?: return@CreateDocument
         if (outUri != null) {
-            convertSparseToRawInternal(srcUri, outUri)
+            lifecycleScope.launch {
+                btnConvert.isEnabled = false
+                val result = try {
+                    txtInfo.text = "Starting conversion..."
+                    withContext(Dispatchers.IO) {
+                        convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
+                            withContext(Dispatchers.Main) {
+                                txtInfo.text = progressMessage
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    "Error: ${e.message}"
+                } finally {
+                    btnConvert.isEnabled = true
+                }
+                txtInfo.text = result
+            }
         }
     }
 
@@ -101,26 +122,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
-        txtInfo.text = "Writing RAW…"
+    private suspend fun convertSparseToRawInternal(
+        src: Uri,
+        outUri: Uri,
+        onProgressUpdate: suspend (String) -> Unit
+    ): String {
+        return try {
+            onProgressUpdate("Writing RAW…")
+            val inputStream = contentResolver.openInputStream(src)
+                ?: throw IllegalStateException("Unable to open source file")
+            val outputStream = contentResolver.openOutputStream(outUri)
+                ?: throw IllegalStateException("Unable to open destination file")
 
-        try {
-            contentResolver.openInputStream(src)?.use { input ->
-                contentResolver.openOutputStream(outUri)?.use { output ->
+            inputStream.use { input ->
+                outputStream.use { output ->
                     SparseImageParser.convertToRaw(input, output) { written ->
-                        runOnUiThread {
-                            txtInfo.text = "Writing RAW… $written bytes"
-                        }
+                        onProgressUpdate("Writing RAW… $written bytes")
                     }
                 }
             }
-            runOnUiThread {
-                txtInfo.text = "Saved RAW image."
-            }
+
+            "Saved RAW image."
         } catch (e: Exception) {
-            runOnUiThread {
-                txtInfo.text = "Error: ${e.message}"
-            }
+            "Error: ${e.message}"
         }
     }
 
@@ -183,7 +207,11 @@ object SparseImageParser {
     }
 
     // Streaming sparse → raw converter.
-    fun convertToRaw(input: InputStream, output: java.io.OutputStream, progress: (Long) -> Unit = {}) {
+    suspend fun convertToRaw(
+        input: InputStream,
+        output: java.io.OutputStream,
+        progress: suspend (Long) -> Unit = {}
+    ) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
             // Not sparse: just copy as-is
