@@ -107,9 +107,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
         lifecycleScope.launch {
-            withContext(Dispatchers.Main) {
-                txtInfo.text = "Writing RAW…"
-            }
+            txtInfo.text = "Writing RAW…"
 
             try {
                 withContext(Dispatchers.IO) {
