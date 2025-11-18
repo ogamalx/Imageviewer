@@ -128,7 +128,10 @@ class MainActivity : AppCompatActivity() {
             val inputStream = contentResolver.openInputStream(src)
                 ?: return "Error: Unable to open source file."
             val outputStream = contentResolver.openOutputStream(outUri)
-                ?: return "Error: Unable to open destination file."
+            if (outputStream == null) {
+                inputStream.close()
+                return "Error: Unable to open destination file."
+            }
 
             inputStream.use { input ->
                 outputStream.use { output ->
