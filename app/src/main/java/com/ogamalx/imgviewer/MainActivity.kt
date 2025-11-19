@@ -47,14 +47,15 @@ class MainActivity : AppCompatActivity() {
                 btnConvert.isEnabled = false
                 txtInfo.text = "Starting conversion..."
 
-                var lastProgressMessage: String? = null
                 val result = withContext(Dispatchers.IO) {
                     convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
-                        lastProgressMessage = progressMessage
+                        withContext(Dispatchers.Main) {
+                            txtInfo.text = progressMessage
+                        }
                     }
                 }
 
-                txtInfo.text = lastProgressMessage ?: result
+                txtInfo.text = result
                 btnConvert.isEnabled = true
             }
         }
