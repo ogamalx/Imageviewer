@@ -128,11 +128,11 @@ class MainActivity : AppCompatActivity() {
                     SparseImageParser.convertToRaw(input, output) { written ->
                         onProgress("Writing RAW… $written bytes")
                     }
+                    "Saved RAW image."
                 }
+            } catch (e: Exception) {
+                "Error: ${e.message}"
             }
-            "Saved RAW image."
-        } catch (e: Exception) {
-            "Error: ${e.message}"
         }
     }
 
@@ -199,7 +199,7 @@ object SparseImageParser {
         input: InputStream,
         output: java.io.OutputStream,
         progress: suspend (Long) -> Unit = {}
-    ) = withContext(Dispatchers.IO) {
+    ) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
             // Not sparse: just copy as-is
@@ -212,7 +212,7 @@ object SparseImageParser {
                 total += r
                 progress(total)
             }
-            return@withContext
+            return
         }
 
         val info = parseHeader(header)
