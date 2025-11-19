@@ -102,26 +102,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
-        txtInfo.text = "Writing RAW…"
+        runOnUiThread {
+            txtInfo.text = "Writing RAW…"
+        }
 
-        try {
-            contentResolver.openInputStream(src)?.use { input ->
-                contentResolver.openOutputStream(outUri)?.use { output ->
-                    SparseImageParser.convertToRaw(input, output) { written ->
-                        runOnUiThread {
-                            txtInfo.text = "Writing RAW… $written bytes"
+        Thread {
+            try {
+                contentResolver.openInputStream(src)?.use { input ->
+                    contentResolver.openOutputStream(outUri)?.use { output ->
+                        SparseImageParser.convertToRaw(input, output) { written ->
+                            runOnUiThread {
+                                txtInfo.text = "Writing RAW… $written bytes"
+                            }
                         }
                     }
                 }
+                runOnUiThread {
+                    txtInfo.text = "Saved RAW image."
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    txtInfo.text = "Error: ${e.message}"
+                }
             }
-            runOnUiThread {
-                txtInfo.text = "Saved RAW image."
-            }
-        } catch (e: Exception) {
-            runOnUiThread {
-                txtInfo.text = "Error: ${e.message}"
-            }
-        }
+        }.start()
     }
 
     private fun readFirstBytes(uri: Uri, n: Int): ByteArray? {
