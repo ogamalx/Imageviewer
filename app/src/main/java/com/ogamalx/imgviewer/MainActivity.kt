@@ -102,9 +102,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
-        runOnUiThread {
-            txtInfo.text = "Writing RAW…"
-        }
+        txtInfo.text = "Writing RAW…"
 
         Thread {
             try {
