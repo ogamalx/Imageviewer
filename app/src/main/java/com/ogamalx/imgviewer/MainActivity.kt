@@ -47,6 +47,7 @@ class MainActivity : AppCompatActivity() {
                 btnConvert.isEnabled = false
                 txtInfo.text = "Starting conversion..."
 
+                var lastProgress = "Starting conversion..."
                 val result = withContext(Dispatchers.IO) {
                     convertSparseToRawInternal(srcUri, outUri)
                 }
@@ -122,18 +123,16 @@ class MainActivity : AppCompatActivity() {
         return try {
             val inputStream = contentResolver.openInputStream(src)
                 ?: return "Error: Unable to open source file."
-            val outputStream = contentResolver.openOutputStream(outUri)
-            if (outputStream == null) {
-                inputStream.close()
-                return "Error: Unable to open destination file."
-            }
 
             inputStream.use { input ->
+                val outputStream = contentResolver.openOutputStream(outUri)
+                    ?: return@use "Error: Unable to open destination file."
+                
                 outputStream.use { output ->
                     SparseImageParser.convertToRaw(input, output)
                 }
+                "Saved RAW image."
             }
-            "Saved RAW image."
         } catch (e: Exception) {
             "Error: ${e.message}"
         }
