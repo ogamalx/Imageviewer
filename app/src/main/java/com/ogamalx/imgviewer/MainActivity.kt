@@ -47,11 +47,9 @@ class MainActivity : AppCompatActivity() {
                 btnConvert.isEnabled = false
                 txtInfo.text = "Starting conversion..."
 
-                val result = withContext(Dispatchers.IO) {
-                    convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
-                        withContext(Dispatchers.Main) {
-                            txtInfo.text = progressMessage
-                        }
+                val result = convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
+                    withContext(Dispatchers.Main) {
+                        txtInfo.text = progressMessage
                     }
                 }
 
@@ -119,29 +117,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
-        txtInfo.text = "Writing RAW…"
-
-        Thread {
-            try {
-                contentResolver.openInputStream(src)?.use { input ->
-                    contentResolver.openOutputStream(outUri)?.use { output ->
-                        SparseImageParser.convertToRaw(input, output) { written ->
-                            runOnUiThread {
-                                txtInfo.text = "Writing RAW… $written bytes"
-                            }
-                        }
+    private suspend fun convertSparseToRawInternal(
+        src: Uri,
+        outUri: Uri,
+        onProgress: suspend (String) -> Unit
+    ): String = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.openInputStream(src)?.use { input ->
+                contentResolver.openOutputStream(outUri)?.use { output ->
+                    SparseImageParser.convertToRaw(input, output) { written ->
+                        onProgress("Writing RAW… $written bytes")
                     }
                 }
-                runOnUiThread {
-                    txtInfo.text = "Saved RAW image."
-                }
-            } catch (e: Exception) {
-                runOnUiThread {
-                    txtInfo.text = "Error: ${e.message}"
-                }
             }
-        }.start()
+            "Saved RAW image."
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
     }
 
     private fun readFirstBytes(uri: Uri, n: Int): ByteArray? {
@@ -206,7 +198,7 @@ object SparseImageParser {
     suspend fun convertToRaw(
         input: InputStream,
         output: java.io.OutputStream,
-        progress: (Long) -> Unit = {}
+        progress: suspend (Long) -> Unit = {}
     ) = withContext(Dispatchers.IO) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
