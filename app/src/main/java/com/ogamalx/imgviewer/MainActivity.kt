@@ -118,30 +118,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun convertSparseToRawInternal(
-        src: Uri,
-        outUri: Uri,
-        onProgressUpdate: (String) -> Unit
-    ): String {
-        return try {
-            val inputStream = contentResolver.openInputStream(src)
-                ?: return "Error: Unable to open source file."
+    private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
+        txtInfo.text = "Writing RAW…"
 
-            inputStream.use { input ->
-                val outputStream = contentResolver.openOutputStream(outUri)
-                    ?: return@use "Error: Unable to open destination file."
-                
-                outputStream.use { output ->
-                    onProgressUpdate("Writing RAW…")
-                    SparseImageParser.convertToRaw(input, output) { written ->
-                        onProgressUpdate("Writing RAW… $written bytes")
+        Thread {
+            try {
+                contentResolver.openInputStream(src)?.use { input ->
+                    contentResolver.openOutputStream(outUri)?.use { output ->
+                        SparseImageParser.convertToRaw(input, output) { written ->
+                            runOnUiThread {
+                                txtInfo.text = "Writing RAW… $written bytes"
+                            }
+                        }
                     }
                 }
-                "Saved RAW image."
+                runOnUiThread {
+                    txtInfo.text = "Saved RAW image."
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    txtInfo.text = "Error: ${e.message}"
+                }
             }
-        } catch (e: Exception) {
-            "Error: ${e.message}"
-        }
+        }.start()
     }
 
     private fun readFirstBytes(uri: Uri, n: Int): ByteArray? {
