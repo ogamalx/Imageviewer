@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     private val createRawDoc = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { outUri ->
-        val srcUri = pendingSparseUri ?: return@CreateDocument
+        val srcUri = pendingSparseUri ?: return@registerForActivityResult
         if (outUri != null) {
             lifecycleScope.launch {
                 btnConvert.isEnabled = false
@@ -210,7 +210,7 @@ object SparseImageParser {
         input: InputStream,
         output: java.io.OutputStream,
         progress: suspend (Long) -> Unit = {}
-    ) {
+    ) = withContext(Dispatchers.IO) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
             // Not sparse: just copy as-is
@@ -223,7 +223,7 @@ object SparseImageParser {
                 total += r
                 progress(total)
             }
-            return
+            return@withContext
         }
 
         val info = parseHeader(header)
