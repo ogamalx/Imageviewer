@@ -49,7 +49,8 @@ class MainActivity : AppCompatActivity() {
 
                 val result = withContext(Dispatchers.IO) {
                     convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
-                        withContext(Dispatchers.Main) {
+                        // Called from IO dispatcher, use runOnUiThread to update UI
+                        runOnUiThread {
                             txtInfo.text = progressMessage
                         }
                     }
@@ -122,7 +123,7 @@ class MainActivity : AppCompatActivity() {
     private suspend fun convertSparseToRawInternal(
         src: Uri,
         outUri: Uri,
-        onProgressUpdate: suspend (String) -> Unit
+        onProgressUpdate: (String) -> Unit
     ): String {
         return try {
             val inputStream = contentResolver.openInputStream(src)
@@ -209,7 +210,7 @@ object SparseImageParser {
     suspend fun convertToRaw(
         input: InputStream,
         output: java.io.OutputStream,
-        progress: suspend (Long) -> Unit = {}
+        progress: (Long) -> Unit = {}
     ) = withContext(Dispatchers.IO) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
