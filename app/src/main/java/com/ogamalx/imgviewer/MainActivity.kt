@@ -120,27 +120,13 @@ class MainActivity : AppCompatActivity() {
     private suspend fun convertSparseToRawInternal(
         src: Uri,
         outUri: Uri,
-        onProgressUpdate: suspend (String) -> Unit
-    ): String {
-        return withContext(Dispatchers.IO) {
-            val inputStream = contentResolver.openInputStream(src)
-                ?: return@withContext "Error: Unable to open source file."
-
-            try {
-                inputStream.use { input ->
-                    val outputStream = contentResolver.openOutputStream(outUri)
-                        ?: return@use "Error: Unable to open destination file."
-                    
-                    outputStream.use { output ->
-                        var lastUpdateTime = System.currentTimeMillis()
-                        SparseImageParser.convertToRaw(input, output) { written ->
-                            // Throttle progress updates to avoid excessive context switching
-                            val now = System.currentTimeMillis()
-                            if (now - lastUpdateTime >= 100) { // Update at most every 100ms
-                                lastUpdateTime = now
-                                onProgressUpdate("Writing RAW… $written bytes")
-                            }
-                        }
+        onProgress: suspend (String) -> Unit
+    ): String = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.openInputStream(src)?.use { input ->
+                contentResolver.openOutputStream(outUri)?.use { output ->
+                    SparseImageParser.convertToRaw(input, output) { written ->
+                        onProgress("Writing RAW… $written bytes")
                     }
                     "Saved RAW image."
                 }
