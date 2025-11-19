@@ -49,9 +49,7 @@ class MainActivity : AppCompatActivity() {
 
                 var lastProgress = "Starting conversion..."
                 val result = withContext(Dispatchers.IO) {
-                    convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
-                        lastProgress = progressMessage
-                    }
+                    convertSparseToRawInternal(srcUri, outUri)
                 }
 
                 txtInfo.text = result
@@ -120,8 +118,7 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun convertSparseToRawInternal(
         src: Uri,
-        outUri: Uri,
-        onProgressUpdate: (String) -> Unit
+        outUri: Uri
     ): String {
         return try {
             val inputStream = contentResolver.openInputStream(src)
@@ -132,10 +129,7 @@ class MainActivity : AppCompatActivity() {
                     ?: return@use "Error: Unable to open destination file."
                 
                 outputStream.use { output ->
-                    onProgressUpdate("Writing RAW…")
-                    SparseImageParser.convertToRaw(input, output) { written ->
-                        onProgressUpdate("Writing RAW… $written bytes")
-                    }
+                    SparseImageParser.convertToRaw(input, output)
                 }
                 "Saved RAW image."
             }
