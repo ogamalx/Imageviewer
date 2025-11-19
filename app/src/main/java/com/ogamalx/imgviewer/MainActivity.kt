@@ -47,9 +47,10 @@ class MainActivity : AppCompatActivity() {
                 btnConvert.isEnabled = false
                 txtInfo.text = "Starting conversion..."
 
-                var lastProgress = "Starting conversion..."
-                val result = withContext(Dispatchers.IO) {
-                    convertSparseToRawInternal(srcUri, outUri)
+                val result = convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
+                    withContext(Dispatchers.Main) {
+                        txtInfo.text = progressMessage
+                    }
                 }
 
                 txtInfo.text = result
@@ -118,21 +119,18 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun convertSparseToRawInternal(
         src: Uri,
-        outUri: Uri
-    ): String {
-        return try {
-            val inputStream = contentResolver.openInputStream(src)
-                ?: return "Error: Unable to open source file."
-
-            inputStream.use { input ->
-                val outputStream = contentResolver.openOutputStream(outUri)
-                    ?: return@use "Error: Unable to open destination file."
-                
-                outputStream.use { output ->
-                    SparseImageParser.convertToRaw(input, output)
+        outUri: Uri,
+        onProgress: suspend (String) -> Unit
+    ): String = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.openInputStream(src)?.use { input ->
+                contentResolver.openOutputStream(outUri)?.use { output ->
+                    SparseImageParser.convertToRaw(input, output) { written ->
+                        onProgress("Writing RAW… $written bytes")
+                    }
                 }
-                "Saved RAW image."
             }
+            "Saved RAW image."
         } catch (e: Exception) {
             "Error: ${e.message}"
         }
@@ -200,7 +198,7 @@ object SparseImageParser {
     suspend fun convertToRaw(
         input: InputStream,
         output: java.io.OutputStream,
-        progress: (Long) -> Unit = {}
+        progress: suspend (Long) -> Unit = {}
     ) = withContext(Dispatchers.IO) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
