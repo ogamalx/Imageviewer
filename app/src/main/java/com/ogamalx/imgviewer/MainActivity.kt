@@ -8,10 +8,6 @@ import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -106,30 +102,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun convertSparseToRawInternal(src: Uri, outUri: Uri) {
-        lifecycleScope.launch {
-            txtInfo.text = "Writing RAW…"
+        txtInfo.text = "Writing RAW…"
 
+        Thread {
             try {
-                withContext(Dispatchers.IO) {
-                    contentResolver.openInputStream(src)?.use { input ->
-                        contentResolver.openOutputStream(outUri)?.use { output ->
-                            SparseImageParser.convertToRaw(input, output) { written ->
-                                lifecycleScope.launch(Dispatchers.Main) {
-                                    txtInfo.text = "Writing RAW… $written bytes"
-                                }
+                contentResolver.openInputStream(src)?.use { input ->
+                    contentResolver.openOutputStream(outUri)?.use { output ->
+                        SparseImageParser.convertToRaw(input, output) { written ->
+                            runOnUiThread {
+                                txtInfo.text = "Writing RAW… $written bytes"
                             }
                         }
                     }
                 }
-                withContext(Dispatchers.Main) {
+                runOnUiThread {
                     txtInfo.text = "Saved RAW image."
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                runOnUiThread {
                     txtInfo.text = "Error: ${e.message}"
                 }
             }
-        }
+        }.start()
     }
 
     private fun readFirstBytes(uri: Uri, n: Int): ByteArray? {

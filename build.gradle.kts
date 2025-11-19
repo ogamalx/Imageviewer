@@ -1,18 +1,7 @@
 // Root Gradle build file for ImgArchiveViewer.
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.tools.build:gradle:8.4.2")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24")
-    }
-}
+// All configuration is in settings.gradle.kts and app/build.gradle.kts.
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
+plugins {
+    id("com.android.application") version "8.4.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.24" apply false
 }
