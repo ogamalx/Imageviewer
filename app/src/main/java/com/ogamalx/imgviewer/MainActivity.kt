@@ -120,8 +120,7 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun convertSparseToRawInternal(
         src: Uri,
-        outUri: Uri,
-        onProgressUpdate: (String) -> Unit
+        outUri: Uri
     ): String {
         return try {
             val inputStream = contentResolver.openInputStream(src)
@@ -134,10 +133,7 @@ class MainActivity : AppCompatActivity() {
 
             inputStream.use { input ->
                 outputStream.use { output ->
-                    onProgressUpdate("Writing RAW…")
-                    SparseImageParser.convertToRaw(input, output) { written ->
-                        onProgressUpdate("Writing RAW… $written bytes")
-                    }
+                    SparseImageParser.convertToRaw(input, output)
                 }
             }
             "Saved RAW image."
