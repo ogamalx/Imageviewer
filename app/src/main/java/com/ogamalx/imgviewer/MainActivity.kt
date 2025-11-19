@@ -47,12 +47,8 @@ class MainActivity : AppCompatActivity() {
                 btnConvert.isEnabled = false
                 txtInfo.text = "Starting conversion..."
 
-                val result = withContext(Dispatchers.IO) {
-                    convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
-                        withContext(Dispatchers.Main) {
-                            txtInfo.text = progressMessage
-                        }
-                    }
+                val result = convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
+                    txtInfo.text = progressMessage
                 }
 
                 txtInfo.text = result
@@ -122,28 +118,34 @@ class MainActivity : AppCompatActivity() {
     private suspend fun convertSparseToRawInternal(
         src: Uri,
         outUri: Uri,
-        onProgressUpdate: suspend (String) -> Unit
+        onProgressUpdate: (String) -> Unit
     ): String {
-        return try {
-            val inputStream = contentResolver.openInputStream(src)
-                ?: return "Error: Unable to open source file."
-            val outputStream = contentResolver.openOutputStream(outUri)
-            if (outputStream == null) {
-                inputStream.close()
-                return "Error: Unable to open destination file."
-            }
+        return withContext(Dispatchers.IO) {
+            try {
+                val inputStream = contentResolver.openInputStream(src)
+                    ?: return@withContext "Error: Unable to open source file."
+                val outputStream = contentResolver.openOutputStream(outUri)
+                if (outputStream == null) {
+                    inputStream.close()
+                    return@withContext "Error: Unable to open destination file."
+                }
 
-            inputStream.use { input ->
-                outputStream.use { output ->
-                    onProgressUpdate("Writing RAW…")
-                    SparseImageParser.convertToRaw(input, output) { written ->
-                        onProgressUpdate("Writing RAW… $written bytes")
+                inputStream.use { input ->
+                    outputStream.use { output ->
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate("Writing RAW…")
+                        }
+                        SparseImageParser.convertToRaw(input, output) { written ->
+                            withContext(Dispatchers.Main) {
+                                onProgressUpdate("Writing RAW… $written bytes")
+                            }
+                        }
                     }
                 }
+                "Saved RAW image."
+            } catch (e: Exception) {
+                "Error: ${e.message}"
             }
-            "Saved RAW image."
-        } catch (e: Exception) {
-            "Error: ${e.message}"
         }
     }
 
