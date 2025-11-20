@@ -1,7 +1,7 @@
 # Simple icon generator for Android app
 Add-Type -AssemblyName System.Drawing
 
-function Create-Icon {
+function New-AppIcon {
     param(
         [int]$size,
         [string]$path
@@ -17,7 +17,6 @@ function Create-Icon {
     
     # White document icon
     $whiteBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
-    $margin = [int]($size * 0.25)
     $docWidth = [int]($size * 0.5)
     $docHeight = [int]($size * 0.6)
     $x = [int](($size - $docWidth) / 2)
@@ -51,10 +50,10 @@ function Create-Icon {
 # Create icons for all densities
 $appPath = "app\src\main\res"
 
-Create-Icon 48 "$appPath\mipmap-mdpi\ic_launcher.png"
-Create-Icon 72 "$appPath\mipmap-hdpi\ic_launcher.png"
-Create-Icon 96 "$appPath\mipmap-xhdpi\ic_launcher.png"
-Create-Icon 144 "$appPath\mipmap-xxhdpi\ic_launcher.png"
-Create-Icon 192 "$appPath\mipmap-xxxhdpi\ic_launcher.png"
+New-AppIcon 48 "$appPath\mipmap-mdpi\ic_launcher.png"
+New-AppIcon 72 "$appPath\mipmap-hdpi\ic_launcher.png"
+New-AppIcon 96 "$appPath\mipmap-xhdpi\ic_launcher.png"
+New-AppIcon 144 "$appPath\mipmap-xxhdpi\ic_launcher.png"
+New-AppIcon 192 "$appPath\mipmap-xxxhdpi\ic_launcher.png"
 
 Write-Host "Icons generated successfully!" -ForegroundColor Green

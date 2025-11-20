@@ -82,8 +82,17 @@ class MainActivity : AppCompatActivity() {
 
         // Handle VIEW intents from file managers
         if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
-            currentUri = intent.data
-            analyze(intent.data!!)
+            val viewUri = intent.data!!
+            try {
+                contentResolver.takePersistableUriPermission(
+                    viewUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+                // SAF providers might decline persistable permissions; keep going regardless.
+            }
+            currentUri = viewUri
+            analyze(viewUri)
         }
     }
 
@@ -123,13 +132,19 @@ class MainActivity : AppCompatActivity() {
         onProgress: suspend (String) -> Unit
     ): String = withContext(Dispatchers.IO) {
         try {
-            contentResolver.openInputStream(src)?.use { input ->
-                contentResolver.openOutputStream(outUri)?.use { output ->
-                    SparseImageParser.convertToRaw(input, output) { written ->
+            val input = contentResolver.openInputStream(src)
+                ?: return@withContext "Error: unable to open source file"
+            val output = contentResolver.openOutputStream(outUri)
+                ?: return@withContext "Error: unable to open destination file"
+
+            input.use { inStream ->
+                output.use { outStream ->
+                    SparseImageParser.convertToRaw(inStream, outStream) { written ->
                         onProgress("Writing RAW… $written bytes")
                     }
                 }
             }
+
             "Saved RAW image."
         } catch (e: Exception) {
             "Error: ${e.message}"
@@ -199,7 +214,7 @@ object SparseImageParser {
         input: InputStream,
         output: java.io.OutputStream,
         progress: suspend (Long) -> Unit = {}
-    ) = withContext(Dispatchers.IO) {
+    ) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
             // Not sparse: just copy as-is
@@ -212,7 +227,7 @@ object SparseImageParser {
                 total += r
                 progress(total)
             }
-            return@withContext
+            return
         }
 
         val info = parseHeader(header)
