@@ -47,12 +47,9 @@ class MainActivity : AppCompatActivity() {
                 btnConvert.isEnabled = false
                 txtInfo.text = "Starting conversion..."
 
-                val result = withContext(Dispatchers.IO) {
-                    convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
-                        // Called from IO dispatcher, use runOnUiThread to update UI
-                        runOnUiThread {
-                            txtInfo.text = progressMessage
-                        }
+                val result = convertSparseToRawInternal(srcUri, outUri) { progressMessage ->
+                    withContext(Dispatchers.Main) {
+                        txtInfo.text = progressMessage
                     }
                 }
 
@@ -123,28 +120,19 @@ class MainActivity : AppCompatActivity() {
     private suspend fun convertSparseToRawInternal(
         src: Uri,
         outUri: Uri,
-        onProgressUpdate: (String) -> Unit
-    ): String {
-        return try {
-            val inputStream = contentResolver.openInputStream(src)
-                ?: return "Error: Unable to open source file."
-            val outputStream = contentResolver.openOutputStream(outUri)
-            if (outputStream == null) {
-                inputStream.close()
-                return "Error: Unable to open destination file."
-            }
-
-            inputStream.use { input ->
-                outputStream.use { output ->
-                    onProgressUpdate("Writing RAW…")
+        onProgress: suspend (String) -> Unit
+    ): String = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.openInputStream(src)?.use { input ->
+                contentResolver.openOutputStream(outUri)?.use { output ->
                     SparseImageParser.convertToRaw(input, output) { written ->
-                        onProgressUpdate("Writing RAW… $written bytes")
+                        onProgress("Writing RAW… $written bytes")
                     }
+                    "Saved RAW image."
                 }
+            } catch (e: Exception) {
+                "Error: ${e.message}"
             }
-            "Saved RAW image."
-        } catch (e: Exception) {
-            "Error: ${e.message}"
         }
     }
 
@@ -210,8 +198,8 @@ object SparseImageParser {
     suspend fun convertToRaw(
         input: InputStream,
         output: java.io.OutputStream,
-        progress: (Long) -> Unit = {}
-    ) = withContext(Dispatchers.IO) {
+        progress: suspend (Long) -> Unit = {}
+    ) {
         val header = ByteArray(28)
         if (input.read(header) != 28 || !isSparse(header)) {
             // Not sparse: just copy as-is
@@ -224,7 +212,7 @@ object SparseImageParser {
                 total += r
                 progress(total)
             }
-            return@withContext
+            return
         }
 
         val info = parseHeader(header)
